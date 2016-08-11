@@ -14,11 +14,12 @@ Due to the way that the taxonomic classification works (the GG database is clust
 
 To generate a Hydrocoleum-only biom file:
 
+```bash
 filter_taxa_from_otu_table.py -i ../open_otus/otu_table_mc2_w_tax_no_pynast_failures.biom -o Hydrocoleum.biom -p g__Hydrocoleum
 
 biom summarize-table -i Hydrocoleum.biom
 biom convert -i Hydrocoleum.biom -o Hydrocoleum_otu_table.txt --to-tsv
-
+```
 Next we need to extract the Trichodesmium sequences from the original seqs.fna file so that we can redo the clustering.
 
 First, get a list of the sequence ids that are in the Hydrocoleum OTU table
