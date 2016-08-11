@@ -81,6 +81,14 @@ Clean up the result a little by removing very rare OTUs (<0.1% of the total) - t
 
 ```bash
 filter_otus_from_otu_table.py -i denovo_otus99/otu_table.biom -o denovo_otus99/otu_table_filt0001.biom --min_count_fraction 0.001
+
+biom convert -i denovo_otus99/otu_table_filt0001.biom -o denovo_otus99/otu_table_filt0001.txt --to-tsv
+
+filter_fasta.py -f denovo_otus99/rep_set/Tricho_seqs_rep_set.fasta -o denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -b denovo_otus99/otu_table_filt0001.biom
+
+align_seqs.py -i denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta
+make_phylogeny.py -i pynast_aligned/Tricho_seqs_rep_set_filt0001_aligned.fasta 
+
 ```
 
 ###Making a phylogenetic tree:
@@ -96,3 +104,63 @@ TODO then do the same for GreenGenes99
 
 This provides all the files needed to plot phylogenetic trees and bar plots using Phyloseq in R.
 
+###Visualising data in R
+
+```r
+library(ape)
+library (reshape2)
+library(phyloseq)
+library(ggplot2)
+
+#load rep_set reads
+otu_reads <- read.delim('denovo_otus99/otu_table_filt0001.txt', skip = 1, row.names = 1)
+
+#otu_reads <- sweep(otu_reads, 2, colSums(otu_reads), FUN = '/')*1000
+
+#otu_reads <- 2^(otu_reads)-1
+#otu_reads <- cbind(otu_reads, ref=rep(0,nrow(otu_reads)))
+
+#Load tree
+tr <- read.tree(file = 'mafft_aligned/all_seqs_aligned-PhyML_tree')
+
+# Load taxonomy assignments for rep_set reads, and coerce into correct format
+tax.reads <- read.delim('Hydrocoleum_filt0001_tax_assignments.txt', header=F)
+
+tax.reads <- with(tax.reads, cbind(V1, colsplit(V2, '; ', names=c('Kingdom',
+                                                                  'Phylum',
+                                                                  'Subsection',
+                                                                  'Family',
+                                                                  'Genus',
+                                                                  'Species'))))
+rownames(tax.reads) <- tax.reads$V1
+tax.reads <- tax.reads[,2:7]
+
+#Load reference taxonomy assignments, and coerce into correct format
+
+tax.ref <- read.delim('hits_tax.txt', header=F)
+
+tax.ref <- with(tax.ref, cbind(V1, colsplit(V2, '; ', names=c('Kingdom',
+                                                              'Phylum',
+                                                              'Subsection',
+                                                              'Family',
+                                                              'Genus',
+                                                              'Species'))))
+rownames(tax.ref) <- tax.ref$V1
+tax.ref <- tax.ref[,2:7]
+
+# Set up dummy OTU table for reference sequences
+
+otu.ref <- matrix(rep(c(0,0,2),nrow(tax.ref)), ncol=3, byrow = T)
+row.names(otu.ref) <- row.names(tax.ref)
+colnames(otu.ref) <- c('Tn004', 'Tn019','ref')
+
+otu.comb <- otu_table(rbind(otu_reads, otu.ref), taxa_are_rows = T)
+tax.comb <- tax_table(as.matrix(rbind(tax.reads, tax.ref)))
+
+full_otu <- phyloseq(otu.comb, tax.comb, phy_tree(tr))
+
+pdf('uclust_SILVA_treeplot.pdf', paper='a4r')
+p <- plot_tree(full_otu, color = "Sample", size="Abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.05)
+print(p)
+dev.off()
+```
