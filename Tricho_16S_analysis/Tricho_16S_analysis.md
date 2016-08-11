@@ -15,49 +15,65 @@ Due to the way that the taxonomic classification works (the GG database is clust
 To generate a Hydrocoleum-only biom file:
 
 ```bash
-filter_taxa_from_otu_table.py -i ../open_otus/otu_table_mc2_w_tax_no_pynast_failures.biom -o Hydrocoleum.biom -p g__Hydrocoleum
+filter_taxa_from_otu_table.py -i ../open_otus/otu_table_mc2_w_tax_no_pynast_failures.biom -o Tricho.biom -p g__Hydrocoleum
 
-biom summarize-table -i Hydrocoleum.biom
-biom convert -i Hydrocoleum.biom -o Hydrocoleum_otu_table.txt --to-tsv
+biom summarize-table -i Tricho.biom
+biom convert -i Tricho.biom -o Tricho_otu_table.txt --to-tsv
 ```
-Next we need to extract the Trichodesmium sequences from the original seqs.fna file so that we can redo the clustering.
+
+Next we need to extract these same Trichodesmium sequences from the original seqs.fna file so that we can redo the clustering.
 
 First, get a list of the sequence ids that are in the Hydrocoleum OTU table
 <code?>
 
 Then extract:
+
+```bash
 filter_fasta.py -f seqs.fna -o Hydrocoleum_seqs.fna -m Hydrocoleum_seqsID.txt
+```
 
-Do de novo sequence clustering at a few different identity levels
-99%:
-Make param file:
+###De novo sequence clustering at 99% identity
+
+Make a parameter file. The pick_otus:similarity setting tells QIIME what level of sequence identity to use for clustering.
+
+```bash
 echo -e 'split_libraries_fastq:phred_offset\t33\npick_otus:enable_rev_strand_match\tTrue\npick_otus:similarity\t0.99' > de_novo_params99.txt
-
+```
 Run de novo OTU picking
+
+```bash
 pick_de_novo_otus.py -i Hydrocoleum_seqs.fna -o denovo_otus99 -p de_novo_params99.txt
+```
 
-Filter to remove OTUs that are <0.1% of the total (probably sequencing errors)
+Clean up the result a little by removing very rare OTUs (<0.1% of the total) - these are likely to be sequencing errors.
+
+```bash
 filter_otus_from_otu_table.py -i denovo_otus99/otu_table.biom -o denovo_otus99/otu_table_filt0001.biom --min_count_fraction 0.001
+```
 
-Taxonomy assignment:
+###Taxonomy assignment
 Taxonomy assignment is not automatically included in the de novo otu picking pipeline so we need to do it separately. We will compare against two databases with higher redundancy than the default greengenes one - GreenGenes clustered at 99% identity and a full (unclustered) 16S database from Silva.
 
-<add download instructions for these>
+TODO: add download instructions for these
 
+Comparing vs Silva:
+```bash
 REF=/research/miseq/Silva_111_post/rep_set/Silva_111_full_unique.fasta
 TAX=/research/miseq/Silva_111_post/taxonomy/Silva_111_taxa_map_full.txt
 
 assign_taxonomy.py -i Hydrocoleum_filt0001.fasta -o uclust_Silva_full_taxonomy/ -t $TAX -r $REF
+```
 
-Making a phylogenetic tree:
+###Making a phylogenetic tree:
 We want to make a tree showing how the OTUs in the dataset are related. However, this will be more informative if we include some known Tricho sequences.
 
-<what is the easiest way to do this?>
+TODO what is the easiest way to do this?
 
+```bash
 align_seqs.py -i Hydrocoleum_filt0001.fasta -m mafft
 make_phylogeny.py -i mafft_aligned/Hydrocoleum_filt0001_aligned.fasta
-
-<then do the same for GreenGenes99>
+```
+TODO then do the same for GreenGenes99
 
 This provides all the files needed to plot phylogenetic trees and bar plots using Phyloseq in R.
 
