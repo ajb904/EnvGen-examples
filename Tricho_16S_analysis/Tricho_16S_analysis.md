@@ -95,6 +95,34 @@ make_phylogeny.py -i denovo_otus99/filtered_alignment/Tricho_seqs_rep_set_filt00
 
 This provides all the files needed to make phylogenetic trees and bar plots using Phyloseq in R.
 
+###Adding known Tricho sequences
+
+We want to make a phylogenetic tree from the OTUs observed in our sample. However, this will be more informative if we also include some known Trichodesmium 16S sequences so that we can see where our samples fit. We can extract these sequences from the Silva database.
+
+```bash
+mkdir known_tricho_seqs
+
+#Fetch all taxonomy entries that contain 'Trichodesmium'
+grep Trichodesmium /research/miseq/db/Silva_111_post/taxonomy/Silva_111_taxa_map_full.txt > known_tricho_seqs/known_tricho_rep_set_taxSilva.txt
+
+#Then pull the corresponding sequences out of the Silva fasta file
+grep -A1 -f <(cut -f1 known_tricho_seqs/known_tricho_rep_set_taxSilva.txt) --no-group-separator /research/miseq/db/Silva_111_post/rep_set/Silva_111_full_unique.fasta > known_tricho_seqs/known_tricho_rep_set.fasta
+```
+
+Next, we create a new phylogenetic tree that includes the known sequences with our samples
+
+```bash
+mkdir align_otus_w_known_seqs
+
+#Combine all the sequences into one file
+cat denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta known_tricho_seqs/known_tricho_rep_set.fasta > align_otus_w_known_seqs/all_seqs.fasta
+
+#Make new alignment and phylogenetic tree
+align_seqs.py -i align_otus_w_known_seqs/all_seqs.fasta -o align_otus_w_known_seqs/aligned_seqs -e 1
+filter_alignment.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned.fasta -o align_otus_w_known_seqs/aligned_seqs/
+make_phylogeny.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned_pfiltered.fasta
+```
+
 ###Visualising data in R
 
 ```r
