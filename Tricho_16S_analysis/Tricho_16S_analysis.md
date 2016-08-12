@@ -81,28 +81,19 @@ Clean up the result a little by removing very rare OTUs (<0.1% of the total) - t
 
 ```bash
 filter_otus_from_otu_table.py -i denovo_otus99/otu_table.biom -o denovo_otus99/otu_table_filt0001.biom --min_count_fraction 0.001
-
-biom convert -i denovo_otus99/otu_table_filt0001.biom -o denovo_otus99/otu_table_filt0001.txt --to-tsv
-
-filter_fasta.py -f denovo_otus99/rep_set/Tricho_seqs_rep_set.fasta -o denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -b denovo_otus99/otu_table_filt0001.biom
-
-align_seqs.py -i denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta
-make_phylogeny.py -i pynast_aligned/Tricho_seqs_rep_set_filt0001_aligned.fasta 
-
 ```
 
-###Making a phylogenetic tree:
-We want to make a tree showing how the OTUs in the dataset are related. However, this will be more informative if we include some known Tricho sequences.
-
-TODO what is the easiest way to do this?
+We then need to apply the same filtering to the rep set (the sequences chosen as representative of each OTU), and regenerate the phylogenetic tree.
 
 ```bash
-align_seqs.py -i Hydrocoleum_filt0001.fasta -m mafft
-make_phylogeny.py -i mafft_aligned/Hydrocoleum_filt0001_aligned.fasta
-```
-TODO then do the same for GreenGenes99
+filter_fasta.py -f denovo_otus99/rep_set/Tricho_seqs_rep_set.fasta -o denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -b denovo_otus99/otu_table_filt0001.biom
 
-This provides all the files needed to plot phylogenetic trees and bar plots using Phyloseq in R.
+align_seqs.py -i denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -o denovo_otus99/filtered_alignment
+make_phylogeny.py -i denovo_otus99/filtered_alignment/Tricho_seqs_rep_set_filt0001_aligned.fasta 
+
+```
+
+This provides all the files needed to make phylogenetic trees and bar plots using Phyloseq in R.
 
 ###Visualising data in R
 
