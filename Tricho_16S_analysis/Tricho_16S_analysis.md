@@ -46,7 +46,7 @@ grep -v '^#' Tricho_otu_table.txt | cut -f1 > otu_list
 Then use this list to filter the OTU mapping file (that was made when you did the original OTU picking) to keep IDs of sequences that are classed as Trichodesmium
 
 ```bash
-grep -f otu_list ../open_otus/final_otu_map_mc2.txt > filtered_Tricho_otu_map.txt
+grep -w -f otu_list ../open_otus/final_otu_map_mc2.txt > filtered_Tricho_otu_map.txt
 ```
 
 Finally, use this list of sequence IDs to filter the original seqs.fna file to keep only the Trichodesmium sequences
