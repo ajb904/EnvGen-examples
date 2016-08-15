@@ -81,19 +81,15 @@ Clean up the result a little by removing very rare OTUs (<0.1% of the total) - t
 
 ```bash
 filter_otus_from_otu_table.py -i denovo_otus99/otu_table.biom -o denovo_otus99/otu_table_filt0001.biom --min_count_fraction 0.001
+
+biom convert -i denovo_otus99/otu_table_filt0001.biom -o denovo_otus99/otu_table_filt0001.txt --to-tsv
 ```
 
-We then need to apply the same filtering to the rep set (the sequences chosen as representative of each OTU), and regenerate the phylogenetic tree.
+We then need to apply the same filtering to the rep set (the sequences chosen as representative of each OTU).
 
 ```bash
 filter_fasta.py -f denovo_otus99/rep_set/Tricho_seqs_rep_set.fasta -o denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -b denovo_otus99/otu_table_filt0001.biom
-
-align_seqs.py -i denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta -o denovo_otus99/filtered_alignment
-make_phylogeny.py -i denovo_otus99/filtered_alignment/Tricho_seqs_rep_set_filt0001_aligned.fasta 
-
 ```
-
-This provides all the files needed to make phylogenetic trees and bar plots using Phyloseq in R.
 
 ###Adding known Tricho sequences
 
@@ -109,7 +105,7 @@ grep Trichodesmium /research/miseq/db/Silva_111_post/taxonomy/Silva_111_taxa_map
 grep -A1 -f <(cut -f1 known_tricho_seqs/known_tricho_rep_set_taxSilva.txt) --no-group-separator /research/miseq/db/Silva_111_post/rep_set/Silva_111_full_unique.fasta > known_tricho_seqs/known_tricho_rep_set.fasta
 ```
 
-Next, we create a new phylogenetic tree that includes the known sequences with our samples
+Next, we create a new phylogenetic tree that includes the known sequences with our samples. Use MAFFT alignment as it seems to cope better with aligning sequences of different lengths.
 
 ```bash
 mkdir align_otus_w_known_seqs
@@ -118,9 +114,8 @@ mkdir align_otus_w_known_seqs
 cat denovo_otus99/rep_set/Tricho_seqs_rep_set_filt0001.fasta known_tricho_seqs/known_tricho_rep_set.fasta > align_otus_w_known_seqs/all_seqs.fasta
 
 #Make new alignment and phylogenetic tree
-align_seqs.py -i align_otus_w_known_seqs/all_seqs.fasta -o align_otus_w_known_seqs/aligned_seqs -e 1
-filter_alignment.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned.fasta -o align_otus_w_known_seqs/aligned_seqs/
-make_phylogeny.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned_pfiltered.fasta
+align_seqs.py -i align_otus_w_known_seqs/all_seqs.fasta -o align_otus_w_known_seqs/aligned_seqs -m mafft
+make_phylogeny.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned.fasta
 ```
 
 ###Visualising data in R
@@ -132,40 +127,54 @@ library(phyloseq)
 library(ggplot2)
 
 #load rep_set reads
-otu_reads <- read.delim('denovo_otus99/otu_table_filt0001.txt', skip = 1, row.names = 1)
-
-#otu_reads <- sweep(otu_reads, 2, colSums(otu_reads), FUN = '/')*1000
-
-#otu_reads <- 2^(otu_reads)-1
-#otu_reads <- cbind(otu_reads, ref=rep(0,nrow(otu_reads)))
+otu_reads <- read.delim('denovo_otus99/otu_table_filt0001.txt', skip = 1, row.names = 1, header=TRUE)
+otu_reads <- cbind(otu_reads, ref=rep(0, nrow(otu_reads)))
 
 #Load tree
-tr <- read.tree(file = 'mafft_aligned/all_seqs_aligned-PhyML_tree')
+tr <- read.tree(file = 'align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned.tre')
 
 # Load taxonomy assignments for rep_set reads, and coerce into correct format
-tax.reads <- read.delim('Hydrocoleum_filt0001_tax_assignments.txt', header=F)
+tax.reads <- read.delim('denovo_otus99/uclust_assigned_taxonomy/Tricho_seqs_rep_set_tax_assignments.txt', header=F)
 
-tax.reads <- with(tax.reads, cbind(V1, colsplit(V2, '; ', names=c('Kingdom',
+tax.reads <- with(tax.reads, cbind(V1, colsplit(V2, '; __', names=c('Kingdom',
                                                                   'Phylum',
                                                                   'Subsection',
                                                                   'Family',
                                                                   'Genus',
-                                                                  'Species'))))
+                                                                  'Species',
+                                                                  'Strain'))))
 rownames(tax.reads) <- tax.reads$V1
-tax.reads <- tax.reads[,2:7]
+tax.reads <- tax.reads[,2:8]
+
+#Set Strain = OTU name, so that we can display OTU names and known strains on the same plot
+
+tax.reads$Strain <- row.names(tax.reads)
 
 #Load reference taxonomy assignments, and coerce into correct format
 
-tax.ref <- read.delim('hits_tax.txt', header=F)
+tax.ref.raw <- read.delim('known_tricho_seqs/known_tricho_rep_set_taxSilva.txt', header=F)
 
-tax.ref <- with(tax.ref, cbind(V1, colsplit(V2, '; ', names=c('Kingdom',
+tax.ref <- with(tax.ref.raw, cbind(V1, colsplit(V2, '; __', names=c('Kingdom',
                                                               'Phylum',
                                                               'Subsection',
                                                               'Family',
                                                               'Genus',
-                                                              'Species'))))
+                                                              'Species',
+                                                              'Strain'))))
 rownames(tax.ref) <- tax.ref$V1
-tax.ref <- tax.ref[,2:7]
+tax.ref <- tax.ref[,2:8]
+
+#Do some annoying faff to turn sort out the lower levels of the SILVA taxonomy
+
+tax.strings <- tax.ref.raw$V2
+genus <- sapply(tax.strings, function(x) rev(unlist(strsplit(as.character(x), "; __")))[2])
+minclass <- sapply(tax.strings, function(x) rev(unlist(strsplit(as.character(x), "; __")))[1])
+pat <- "(.*?_.*?)_.*"
+species <- sub(pat, "\\1", minclass)
+
+tax.ref$Genus <- genus
+tax.ref$Species <- species
+tax.ref$Strain <- minclass
 
 # Set up dummy OTU table for reference sequences
 
@@ -176,10 +185,11 @@ colnames(otu.ref) <- c('Tn004', 'Tn019','ref')
 otu.comb <- otu_table(rbind(otu_reads, otu.ref), taxa_are_rows = T)
 tax.comb <- tax_table(as.matrix(rbind(tax.reads, tax.ref)))
 
-full_otu <- phyloseq(otu.comb, tax.comb, phy_tree(tr))
+full_otu <- phyloseq(otu_table(otu.comb), tax.comb, phy_tree(tr))
 
-pdf('uclust_SILVA_treeplot.pdf', paper='a4r')
-p <- plot_tree(full_otu, color = "Sample", size="Abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.05)
+#pdf('uclust_SILVA_treeplot.pdf', paper='a4r')
+p <- plot_tree(full_otu, color = "Sample", size="Abundance", label.tips = "Strain", sizebase = 10, base.spacing = 0.05)
 print(p)
-dev.off()
+#dev.off()
+
 ```
