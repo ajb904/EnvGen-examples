@@ -122,5 +122,5 @@ make_phylogeny.py -i align_otus_w_known_seqs/aligned_seqs/all_seqs_aligned.fasta
 
 To generate a phylogenetic tree showing how the clustered sequences relate to known Trichodesmium species, run [this R script - phyloseq99.R](https://github.com/ajb904/EnvGen-examples/blob/gh-pages/Tricho_16S_analysis/phyloseq99.R)
 
-The tree output will appear in a file called `<uclust_SILVA_treeplot.pdf>`.
+The tree output will appear in a file called `uclust_SILVA_treeplot.pdf`.
 
