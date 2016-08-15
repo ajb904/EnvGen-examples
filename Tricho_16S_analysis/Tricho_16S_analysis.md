@@ -35,7 +35,7 @@ biom summarize-table -i Tricho.biom
 biom convert -i Tricho.biom -o Tricho_otu_table.txt --to-tsv
 ```
 
-Next we need to extract these same Trichodesmium sequences from the original seqs.fna file so that we can redo the clustering. (This should be easier than it is...)
+Next we need to extract these same Trichodesmium sequences from the original seqs.fna file so that we can redo the clustering. (There doesn't seem to be a convenient way to do this in QIIME, but this method works...)
 
 First, use the text version of the OTU table to get a list of OTU IDs present in the filtered dataset
 
