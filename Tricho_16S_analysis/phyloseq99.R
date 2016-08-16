@@ -1,5 +1,6 @@
 library(phyloseq)
 library(ggplot2)
+library(reshape2)
 
 ### Loading read data
 #load our representative set of sequenced reads
